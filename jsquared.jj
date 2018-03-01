@@ -1,5 +1,6 @@
 /* JavaCC input file for a simple imperative language. */
 /* JSquared by Jose Angulo and Jeremy Hofer */
+/* this is a change to the file */
 PARSER_BEGIN(JSquared)
 
 import java.io.*;
