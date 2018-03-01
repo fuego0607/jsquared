@@ -1,0 +1,193 @@
+/* JavaCC input file for a simple imperative language. */
+/* JSquared by Jose Angulo and Jeremy Hofer */
+PARSER_BEGIN(JSquared)
+
+import java.io.*;
+
+class JSquared {
+	public static void main(String[] args) throws ParseException, TokenMgrError {
+		if (args.length > 0) {
+			try {
+				JSquared scan = new JSquared(new FileInputStream(args[0]));
+				scan.Program();
+			} catch (FileNotFoundException ex) {
+				System.out.println("File "+args[0]+" not found.");
+			}
+		} else {
+			System.out.println("Must specify source code file name.");
+		}
+	}
+}
+
+PARSER_END(JSquared)
+
+SKIP : { " " | "\t" | "\n" }
+TOKEN : { <COMMENT : "//"(["a"-"z", "A"-"Z","0"-"9","_"," ","<",">","!","=","/","%","@","#",":","(",")","*",",","."])* >}
+TOKEN : { <LPAREN : "("> }
+TOKEN : { <RPAREN : ")"> }
+TOKEN : { <DBLSTAR : "**"> }
+TOKEN : { <SGLSTAR : "*"> }
+TOKEN : { <INPUT : "<<" >}
+TOKEN : { <OUTPUT : ">>" >}
+TOKEN : { <ASSIGN : ":" > }
+TOKEN : { <ADD : "+" > }
+TOKEN : { <SUB : "-" > }
+TOKEN : { <DIV : "/" > }
+TOKEN : { <MOD : "%" > }
+TOKEN : { <LESSEQ : "<=" > }
+TOKEN : { <GREATEQ : ">=" > }
+TOKEN : { <LESS : "<" > }
+TOKEN : { <GREAT : ">" > }
+TOKEN : { <NOTEQ : "!=" > }
+TOKEN : { <EQ : "==" > }
+TOKEN : { <INT : "0" | ["1"-"9"](["0"-"9"])* > }
+TOKEN : { <ID : ["a"-"z", "A"-"Z"](["a"-"z", "A"-"Z","0"-"9","_"])* > }
+
+void Program():
+{
+	Token t;
+}
+{
+	(
+		<LPAREN>  { System.out.println("LPAREN"); }
+		|
+		<RPAREN>  { System.out.println("RPAREN"); }
+		|
+		<DBLSTAR>  { System.out.println("DBLSTAR"); }
+		|
+		<SGLSTAR>  { System.out.println("SGLSTAR"); }
+		|
+		<INPUT>  { System.out.println("INPUT"); }
+		|
+		<OUTPUT>  { System.out.println("OUTPUT"); }
+		|
+		<ASSIGN>  { System.out.println("ASSIGN"); }
+		|
+		<ADD>  { System.out.println("ADD"); }
+		|
+		<SUB>  { System.out.println("SUB"); }
+		|
+		<DIV>  { System.out.println("DIV"); }
+		|
+		<MOD>  { System.out.println("MOD"); }
+		|
+		<LESSEQ>  { System.out.println("LESSEQ"); }
+		|
+		<GREATEQ>  { System.out.println("GREATEQ"); }
+		|
+		<LESS>  { System.out.println("LESS"); }
+		|
+		<GREAT>  { System.out.println("GREAT"); }
+		|
+		<NOTEQ>  { System.out.println("NOTEQ"); }
+		|
+		<EQ>  { System.out.println("EQ"); }
+		|
+		t = <INT>  { System.out.println("INT("+t.image+")"); }
+		|
+		t = <ID>   { System.out.println("ID("+t.image+")"); }
+		|
+		t = <COMMENT> { System.out.println("COMMENT("+t.image+")"); }
+	)+
+}
+
+Node Base_Stmt():
+{}
+{
+	(Input()|Output()|Assign()|Cond()|While()) 
+}
+
+Node Input():
+{}
+{
+	<INPUT> <ID>
+}
+
+Node Output():
+{}
+{
+	<OUTPUT> Logic_Exp()
+}
+
+Node Assign():
+{}
+{
+	<ID> <ASSIGN> Logic_Exp()
+}
+
+Node Cond():
+{
+	Node n;
+	Node child;
+}
+{
+	<SGLSTAR> <LPAREN> Logic_Exp() <RPAREN> Block() (Block())?
+
+	<SGLSTAR> {n = new Node("COND");}
+	<LPAREN>
+	child = Logic_Exp() {n.addChild(child);}
+	<RPAREN>
+	child = Block() {n.addChild(child);}
+	(
+		child = Block() {n.addChild(child);}
+	)?
+	{return n;}
+}
+
+Node While():
+{
+	Node n; //root of tree
+	Node child; //
+}
+{
+	<DBLSTAR> <LPAREN> Logic_Exp() <RPAREN> Block()
+
+	<DBLSTAR> {n = new Node("While");}
+	<LPAREN>
+	child = Logic_Exp() {n.addChild(child);}
+	<RPAREN>
+	child = Block() {n.addChild(child);}
+	{return n;}
+}
+
+Node Block():
+{}
+{
+	<LPAREN> (Base_Stmt()|(<LPAREN> Base_Stmt() <RPAREN>)*) <RPAREN>
+}
+
+Node Logic_Exp():
+{}
+{
+	Math_Exp() ((<LESS>|<GREAT>|<LESSEQ>|<GREATEQ>|<NOTEQ>|<EQ>) Math_Exp())?
+}
+
+Node Math_Exp():
+{}
+{
+	Math_Term() ((<ADD>|<SUB>) Math_Term())*
+}
+
+Node Math_Term():
+{}
+{
+	Math_Factor() ((<SGLSTAR>|<DIV>|<MOD>) Math_Factor())*
+}
+
+Node Math_Factor():
+{
+	Node n;
+	Token t;
+}
+{
+	(
+		t = <ID> {n = IDNode(t.image);}
+		|
+		t = <INT> {n = INTNode(t.image);}
+		|
+		<LPAREN>
+		n = Math_Exp()
+		<RPAREN>
+	)
+	{return n;}
+}
