@@ -1,6 +1,5 @@
 /* JavaCC input file for a simple imperative language. */
 /* JSquared by Jose Angulo and Jeremy Hofer */
-/* this is a change to the file */
 PARSER_BEGIN(JSquared)
 
 import java.io.*;
@@ -10,13 +9,30 @@ class JSquared {
 		if (args.length > 0) {
 			try {
 				JSquared scan = new JSquared(new FileInputStream(args[0]));
-				scan.Program();
+				Node tree = scan.Program();
+				printAST(tree);
 			} catch (FileNotFoundException ex) {
 				System.out.println("File "+args[0]+" not found.");
 			}
 		} else {
 			System.out.println("Must specify source code file name.");
 		}
+	}
+
+	public static void printAST(Node node) {
+		String label = node.getLabel();
+		if(label.equals("INT") || label.equals("ID")) {
+			System.out.println(node);
+		} else {
+			System.out.println(node);
+			Node child = node.getChild();
+			while(child != null) {
+				printAST(child);
+				child = node.getChild();
+			}
+		}
+
+		return;
 	}
 }
 
@@ -44,7 +60,7 @@ TOKEN : { <EQ : "==" > }
 TOKEN : { <INT : "0" | ["1"-"9"](["0"-"9"])* > }
 TOKEN : { <ID : ["a"-"z", "A"-"Z"](["a"-"z", "A"-"Z","0"-"9","_"])* > }
 
-void Program():
+void PrintTokens():
 {
 	Token t;
 }
@@ -92,28 +108,72 @@ void Program():
 	)+
 }
 
-Node Base_Stmt():
-{}
+Node Program():
 {
-	(Input()|Output()|Assign()|Cond()|While()) 
+	Node n;
+	Node child;
+}
+{
+	{n = new Node("PROGRAM");}
+	(
+		child = Block() {n.addChild(child);}
+	)+
+	{return n;}
+}
+
+Node Base_Stmt():
+{
+	Node n;
+}
+{
+	(
+		n = Input()
+		|
+		n = Output()
+		|
+		n = Assign()
+		|
+		n = Cond()
+		|
+		n = While()
+	)
+	{return n;}
 }
 
 Node Input():
-{}
 {
-	<INPUT> <ID>
+	Node n;
+	Node child;
+	Token t;
+}
+{
+	<INPUT> {n = new Node("INPUT");}
+	t = <ID> {n.addChild(new IDNode(t.image));}
+	{return n;}
 }
 
 Node Output():
-{}
 {
-	<OUTPUT> Logic_Exp()
+	Node n;
+	Node child;
+}
+{
+	<OUTPUT> {n = new Node("OUTPUT");}
+	child = Logic_Exp() {n.addChild(child);}
+	{return n;}
 }
 
 Node Assign():
-{}
 {
-	<ID> <ASSIGN> Logic_Exp()
+	Node n;
+	Node child;
+	Token t;
+}
+{
+	t = <ID> {child = new IDNode(t.image);}
+	<ASSIGN> {n = new Node("ASSIGN"); n.addChild(child);}
+	child = Logic_Exp() {n.addChild(child);}
+	{return n;}
 }
 
 Node Cond():
@@ -122,8 +182,6 @@ Node Cond():
 	Node child;
 }
 {
-	<SGLSTAR> <LPAREN> Logic_Exp() <RPAREN> Block() (Block())?
-
 	<SGLSTAR> {n = new Node("COND");}
 	<LPAREN>
 	child = Logic_Exp() {n.addChild(child);}
@@ -141,9 +199,7 @@ Node While():
 	Node child; //
 }
 {
-	<DBLSTAR> <LPAREN> Logic_Exp() <RPAREN> Block()
-
-	<DBLSTAR> {n = new Node("While");}
+	<DBLSTAR> {n = new Node("WHILE");}
 	<LPAREN>
 	child = Logic_Exp() {n.addChild(child);}
 	<RPAREN>
@@ -152,27 +208,90 @@ Node While():
 }
 
 Node Block():
-{}
 {
-	<LPAREN> (Base_Stmt()|(<LPAREN> Base_Stmt() <RPAREN>)*) <RPAREN>
+	Node n;
+	Node child;
+}
+{
+	<LPAREN> {n = new Node("BLOCK");}
+	(
+		child = Base_Stmt() {n.addChild(child);}
+		|
+		(
+			<LPAREN>
+			child = Base_Stmt() {n.addChild(child);}
+			<RPAREN>
+		)*
+	)
+	<RPAREN>
+	{return n;}
 }
 
 Node Logic_Exp():
-{}
 {
-	Math_Exp() ((<LESS>|<GREAT>|<LESSEQ>|<GREATEQ>|<NOTEQ>|<EQ>) Math_Exp())?
+	Node n;
+	Node child;
+}
+{
+	child = Math_Exp() {n = new Node("LOGIC_EXP"); n.addChild(child);}
+	(
+		(
+			<LESS> {child = new Node("LESS");}
+			|
+			<GREAT> {child = new Node("GREAT");}
+			|
+			<LESSEQ> {child = new Node("LESSEQ");}
+			|
+			<GREATEQ> {child = new Node("GREATEQ");}
+			|
+			<NOTEQ> {child = new Node("NOTEQ");}
+			|
+			<EQ> {child = new Node("EQ");}
+		) 
+		{n.addChild(child);}
+		child = Math_Exp() {n.addChild(child);}
+	)?
+	{return n;}
 }
 
 Node Math_Exp():
-{}
 {
-	Math_Term() ((<ADD>|<SUB>) Math_Term())*
+	Node n;
+	Node child;
+}
+{
+	child = Math_Term() {n = new Node("MATH_EXP"); n.addChild(child);}
+	(
+		(
+			<ADD> {child = new Node("ADD");}
+			|
+			<SUB> {child = new Node("SUB");}
+		)
+		{n.addChild(child);}
+		child = Math_Term() {n.addChild(child);}
+	)*
+	{return n;}
 }
 
 Node Math_Term():
-{}
 {
-	Math_Factor() ((<SGLSTAR>|<DIV>|<MOD>) Math_Factor())*
+	Node n;
+	Node child;
+}
+{
+	child = Math_Factor() {n = new Node("MATH_TERM"); n.addChild(child);}
+	(
+		(
+			<SGLSTAR> {child = new Node("MUL");}
+			|
+			<DIV> {child = new Node("DIV");}
+			|
+			<MOD> {child = new Node("MOD");}
+		)
+		{n.addChild(child);}
+		child = Math_Factor() {n.addChild(child);}
+	)*
+	{return n;}
 }
 
 Node Math_Factor():
@@ -182,9 +301,9 @@ Node Math_Factor():
 }
 {
 	(
-		t = <ID> {n = IDNode(t.image);}
+		t = <ID> {n = new IDNode(t.image);}
 		|
-		t = <INT> {n = INTNode(t.image);}
+		t = <INT> {n = new INTNode(t.image);}
 		|
 		<LPAREN>
 		n = Math_Exp()
