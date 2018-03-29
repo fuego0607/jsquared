@@ -3,14 +3,23 @@
 PARSER_BEGIN(JSquared)
 
 import java.io.*;
+import java.util.HashMap;
+
+class UninitializedVariableError extends Exception {
+    public UninitializedVariableError(String message) {
+        super(message);
+    }
+}
 
 class JSquared {
-	public static void main(String[] args) throws ParseException, TokenMgrError {
+
+	public static HashMap<String, Integer> variables = new HashMap<String, Integer>();
+	public static void main(String[] args) throws ParseException, TokenMgrError, AssertionError, UninitializedVariableError{
 		if (args.length > 0) {
 			try {
 				JSquared scan = new JSquared(new FileInputStream(args[0]));
 				Node tree = scan.Program();
-				printAST(tree);
+				run_program(tree);
 			} catch (FileNotFoundException ex) {
 				System.out.println("File "+args[0]+" not found.");
 			}
@@ -19,20 +28,102 @@ class JSquared {
 		}
 	}
 
-	public static void printAST(Node node) {
+	public static void run_program(Node node) throws AssertionError, UninitializedVariableError{
 		String label = node.getLabel();
-		if(label.equals("INT") || label.equals("ID")) {
-			System.out.println(node);
-		} else {
-			System.out.println(node);
-			Node child = node.getChild();
-			while(child != null) {
-				printAST(child);
-				child = node.getChild();
+		if(label.equals("PROGRAM") || label.equals("BLOCK")) {
+			for(Node child: node.children) {
+				run_program(child);
 			}
+		} else if (label.equals("LOGIC_EXP") || label.equals("MATH_EXP")) {
+			int value = evaluate(node);
+			System.out.println(value);
+		} else if(label.equals("ASSIGN") || label.equals("INPUT") || label.equals("OUTPUT") || label.equals("WHILE") || label.equals("COND")) {
+			execute(node);
+		} else {
+			throw new AssertionError("Invalid program.");
+		}
+	}
+
+	public static int evaluate(Node n) throws AssertionError, UninitializedVariableError{
+		int value = 0;
+		Integer temp = null;
+		String operation = null;
+		System.out.println(n);
+		for(Node child: n.children) {
+			System.out.println(child);
+			//check to see if operation is null. should always have some operation present unless we are in the left most node/subtree
+			if(child.label.equals("INT")) {
+				temp = new Integer(child.getValue());
+			} else if(child.label.equals("ID")) {
+				Integer t = variables.get(child.getID());
+
+				if(t == null) {
+					throw new UninitializedVariableError(child.getID()+" was not initialized before use");
+				} else {
+					temp = t;
+				}
+			} else if(child.label.equals("LOGIC_EXP") || child.label.equals("MATH_EXP") || child.label.equals("MATH_TERM")) {
+				temp = new Integer(evaluate(child));
+			} else if(child.label.equals("LESS") || child.label.equals("GREAT") || child.label.equals("LESSEQ") || child.label.equals("GREATEQ") || child.label.equals("NOTEQ") ||
+					child.label.equals("EQ") || child.label.equals("ADD") || child.label.equals("SUB") || child.label.equals("MUL") || child.label.equals("DIV") ||
+					child.label.equals("MOD")) {
+
+					operation = child.label;
+					continue;
+			} else {
+				throw new AssertionError("Invalid expression.");
+			}
+
+			if(operation == null && temp != null) {
+				value = temp.intValue();
+			} else if(operation != null && temp != null) {
+				value = perform_op(value, operation, temp);	
+			} else {
+				throw new AssertionError("Invalid expression.");
+			}
+
+			temp = null;
 		}
 
-		return;
+		return value;
+	}
+
+	public static int perform_op(int a, String op, int b) {
+		int result = 0;
+
+		if(op.equals("LESS")) {
+			result = (a < b) ? 1 : 0;
+		} else if(op.equals("GREAT")) {
+			result = (a > b) ? 1 : 0;
+		} else if(op.equals("LESSEQ")) {
+			result = (a <= b) ? 1 : 0;
+		} else if(op.equals("GREATEQ")) {
+			result = (a >= b) ? 1 : 0;
+		} else if(op.equals("NOTEQ")) {
+			result = (a != b) ? 1 : 0;
+		} else if(op.equals("EQ")) {
+			result = (a == b) ? 1 : 0;
+		} else if(op.equals("ADD")) {
+			result = a + b;
+		} else if(op.equals("SUB")) {
+			result = a - b;
+		} else if(op.equals("MUL")) {
+			result = a * b;
+		} else if(op.equals("DIV")) {
+			result = a / b;
+		} else if(op.equals("MOD")) {
+			result = a % b;
+		}
+
+		return result;
+	}
+
+	public static void execute(Node n) throws AssertionError, UninitializedVariableError{
+		if(n.label.equals("ASSIGN")) {
+			int output = evaluate(n.children.get(1));
+			System.out.println(output);
+		} else
+			System.out.println("Will execute node");
 	}
 }
 

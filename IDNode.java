@@ -1,7 +1,6 @@
 
 public class IDNode extends Node {
-	String id;
-	
+
 	public IDNode(String id){
 		super("ID");
 		this.id = id;	

@@ -1,6 +1,5 @@
 
 public class INTNode extends Node {
-		int value;
 		
 	public INTNode(String value){
 		super("INT");

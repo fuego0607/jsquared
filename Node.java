@@ -4,6 +4,8 @@ public class Node {
 	String label;
 	LinkedList<Node> children;
 	int child_count;
+	int value;
+	String id;
 	
 	public Node(String label){
 		this.label=label;
@@ -19,12 +21,16 @@ public class Node {
 		this.child_count++;
 	}
 
-	public Node getChild() {
-		return this.children.poll();
-	}
-
 	public String getLabel() {
 		return this.label;
+	}
+
+	public int getValue() {
+		return this.value;
+	}
+
+	public String getID() {
+		return this.id;
 	}
 
 	@Override
