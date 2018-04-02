@@ -4,6 +4,7 @@ PARSER_BEGIN(JSquared)
 
 import java.io.*;
 import java.util.HashMap;
+import java.util.Scanner;
 
 class UninitializedVariableError extends Exception {
     public UninitializedVariableError(String message) {
@@ -14,11 +15,13 @@ class UninitializedVariableError extends Exception {
 class JSquared {
 
 	public static HashMap<String, Integer> variables = new HashMap<String, Integer>();
+	public static Scanner sc = new Scanner(System.in);
 	public static void main(String[] args) throws ParseException, TokenMgrError, AssertionError, UninitializedVariableError{
 		if (args.length > 0) {
 			try {
 				JSquared scan = new JSquared(new FileInputStream(args[0]));
 				Node tree = scan.Program();
+				//printAST(tree);
 				run_program(tree);
 			} catch (FileNotFoundException ex) {
 				System.out.println("File "+args[0]+" not found.");
@@ -28,7 +31,22 @@ class JSquared {
 		}
 	}
 
+	public static void printAST(Node node) {
+		String label = node.getLabel();
+		if(label.equals("INT") || label.equals("ID")) {
+			System.out.println(node);
+		} else {
+			System.out.println(node);
+			for(Node child: node.children) {
+				printAST(child);
+			}
+		}
+
+		return;
+	}
+
 	public static void run_program(Node node) throws AssertionError, UninitializedVariableError{
+		//System.out.println("Running "+node);
 		String label = node.getLabel();
 		if(label.equals("PROGRAM") || label.equals("BLOCK")) {
 			for(Node child: node.children) {
@@ -48,9 +66,9 @@ class JSquared {
 		int value = 0;
 		Integer temp = null;
 		String operation = null;
-		System.out.println(n);
+		//System.out.println("Evaluating "+n);
 		for(Node child: n.children) {
-			System.out.println(child);
+			//System.out.println("Child node "+child);
 			//check to see if operation is null. should always have some operation present unless we are in the left most node/subtree
 			if(child.label.equals("INT")) {
 				temp = new Integer(child.getValue());
@@ -119,11 +137,39 @@ class JSquared {
 	}
 
 	public static void execute(Node n) throws AssertionError, UninitializedVariableError{
+		//System.out.println("Executing "+n);
 		if(n.label.equals("ASSIGN")) {
 			int output = evaluate(n.children.get(1));
-			System.out.println(output);
-		} else
-			System.out.println("Will execute node");
+			//System.out.println(output);
+			variables.put(n.children.get(0).getID(), new Integer(output));
+		} else if(n.label.equals("WHILE")){
+			Node condition = n.children.get(0);
+			Node body = n.children.get(1);
+			
+			while(evaluate(condition) != 0){
+				run_program(body);
+			}
+		} else if (n.label.equals("INPUT")){
+			System.out.print("Enter input: ");
+			int in = sc.nextInt();
+			variables.put(n.children.get(0).getID(), new Integer(in));
+		}else if(n.label.equals("OUTPUT")){
+			int output = evaluate(n.children.get(0));
+			System.out.println("Output: "+output);
+		}else if(n.label.equals("COND")){
+			Node condition = n.children.get(0);
+			if(evaluate(condition)!=0){
+				run_program(n.children.get(1));
+			}else{
+				try{
+					run_program(n.children.get(2));
+				}catch (IndexOutOfBoundsException e){
+					
+				}
+			}
+		} else {
+			throw new AssertionError("Unexpected statement execution.");
+		}
 	}
 }
 
